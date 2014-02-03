@@ -1,25 +1,31 @@
 package alipay.util;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import play.libs.WS.HttpResponse;
-import play.libs.ws.WSUrlFetch;
 
 public class HttpUtil {
 	private static final Logger logger = LoggerFactory.getLogger(HttpUtil.class);
 	private static final String ENC = "UTF-8";
+	
+	private static CloseableHttpClient httpclient = HttpClients.createDefault();
 
 	/**
 	 * decode url query to map.
@@ -83,21 +89,42 @@ public class HttpUtil {
 	 * @return
 	 */
     public static String doGet(String urlvalue) {
-    		WSUrlFetch wsu = new WSUrlFetch();
-    		HttpResponse response = wsu.newRequest(urlvalue,"utf-8").get();
-    		String body = response.getString();
-    		return body;
+    	HttpGet httpget = new HttpGet(urlvalue);
+    	return sendAndParseResponse(httpget);
     }
-    
+
 	/**
 	 * Simple POST to server.
 	 * @param urlvalue
 	 * @return
 	 */
     public static String doPost(String urlvalue) {
-    		WSUrlFetch wsu = new WSUrlFetch();
-    		HttpResponse response = wsu.newRequest(urlvalue,"utf-8").post();
-    		String body = response.getString();
-    		return body;
+    	HttpPost httpget = new HttpPost(urlvalue);
+    	return sendAndParseResponse(httpget);
     }
+    
+	private static String sendAndParseResponse(HttpUriRequest httpRequest) {
+		try {
+			return sendAndParseResponseImpl(httpRequest);
+		} catch (ClientProtocolException e) {
+			throw new RuntimeException(e);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private static String sendAndParseResponseImpl(HttpUriRequest httpRequest)
+			throws IOException, ClientProtocolException {
+		CloseableHttpResponse response = httpclient.execute(httpRequest);
+    	try {
+    		HttpEntity entity = response.getEntity();
+    		InputStream content = entity.getContent();
+    		StringWriter writer = new StringWriter();
+    		IOUtils.copy(content, writer, "utf-8");
+    		String body = writer.toString();
+    		return body;
+    	} finally {
+    		response.close();
+    	}
+	}
 }
