@@ -21,7 +21,7 @@ dependencies {
 }
 
 //let's at least copy all jars to a single directory to use in creating an application...
-task syncJars(dependsOn: 'clean',type: Sync) {
+task syncJars(type: Sync) {
     from(configurations.compile) {}
     from(fixedLibDir) {}
     into toStagingLibsDir
